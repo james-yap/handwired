@@ -18,7 +18,7 @@ const rootSources = readdirSync(root).filter(name => name.endsWith('.ts'))
 const commands = [
   ['bunx', 'tsc', '-p', '.'],
   ...[...labs, ...prototypes].map(lab => ['bunx', 'tsc', '-p', lab]),
-  ['bunx', 'oxlint', '--type-aware', ...rootSources, 'src', 'tests', 'scripts', 'template', ...labs],
+  ['bunx', 'oxlint', '--type-aware', ...rootSources, 'src', 'tests', 'scripts', 'template', 'game2048', ...labs],
 ]
 
 // typescript6, the TypeScript 6 that lab/trace-compiler imports, has a `tsc` binary too. Bun 1.4.3

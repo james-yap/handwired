@@ -11,11 +11,12 @@
     "start:learning": "bun ./assets/learned-gallery.html",
     "start:reusable": "bun ./lab/reusable-layout/demo.html",
     "start:template": "bun ./template/index.html",
+    "start:2048": "bun ./game2048/index.html",
     "site:build": "bun scripts/build-demo-site.ts",
     "site:check": "bun scripts/check-demo-site.ts",
     "check": "bun scripts/check.ts",
     "knip": "knip",
-    "test": "bun test --timeout 30000 ./tests ./template ./lab"
+    "test": "bun test --timeout 30000 ./tests ./template ./game2048 ./lab"
   },
   "devDependencies": {
     "@chenglou/pretext": "1.0.0",

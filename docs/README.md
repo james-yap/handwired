@@ -28,9 +28,10 @@ The repo needs [Bun](https://bun.sh), and is tested with Bun 1.4.3.
 bun install
 bun start                                 # the demo site at http://127.0.0.1:3000/: the landing page, and the demos at /os/, /learned-gallery/ and /json-search/
 bun run start:template                    # the template app, a toggle switch, at http://localhost:3000/
-bun run test                              # every test in tests/, template/ and lab/, in about 3 minutes
+bun run start:2048                        # 2048 as one numeric program, at http://localhost:3000/
+bun run test                              # every test in tests/, template/, game2048/ and lab/, in about 3 minutes
 bun test tests/runtime                    # one folder's tests, in about 2 s
-bun run check                             # type-checks and lints src/, tests/, scripts/, template/ and lab/, in about 3 s
+bun run check                             # type-checks and lints src/, tests/, scripts/, template/, game2048/ and lab/, in about 3 s
 bun run site:build                        # the demo site as static files in site/
 bun run site:check                        # builds the site and loads every page in headless Chrome
 bun lab/ui-exploration/serve-demos.ts     # the lab's demos, at http://127.0.0.1:4321/
@@ -45,6 +46,7 @@ bun lab/runtime-cost/report.ts            # three programs' sizes and µs per ev
 - `src/handwiredos/`, `src/learned-gallery/` and `src/json-search/`: the three demos, each with a README that names its files. HandwiredOS is a small desktop with three windows and a dock, run by one program. The learned gallery is a photo layout computed by a small network inside a program, whose coefficients are trained with the program's own gradients. JSON search searches 100,000 JSON documents at each keystroke, with two programs that it writes as WebGPU shaders
 - `assets/`: the demo site's pages, stylesheets and images, e.g. `demos.html` for the landing page and `index.html` for HandwiredOS
 - `template/`: the toggle switch to start an app from
+- `game2048/`: the game 2048 as one numeric program, an app copied from the template's layout. Its README walks through how the rules and the tile animation become arithmetic
 - `tests/`: `tests/runtime/` runs programs, including seeded random ones, through a plain reference evaluator and the compiled one, and compares the results. The other folders hold each demo's tests, which run without a browser, e.g. JSON search's GPU code through an interpreter
 - `scripts/`: `check.ts` is what `bun run check` runs, and the other files are the demo site's server, build and check, which share the list of pages in `demo-site-pages.ts`. `.github/workflows/pages.yml` runs the build on pushes to main and publishes site/ to GitHub Pages
 - `lab/`: the experiments that the runtime and the demos came out of. You can build an app without reading them. Its READMEs describe the code as it was when each was written. [lab/status.md](../lab/status.md) lists measurements and the known issues in src/, and its section [The folders of lab/](../lab/status.md#the-folders-of-lab) says what each folder is. The lab's [guide](../lab/ui-exploration/guide/README.md) has longer explanations and more runnable examples

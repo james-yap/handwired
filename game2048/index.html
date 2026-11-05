@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2048, as one numeric program</title>
+  <style>
+    /* page.ts writes each tile's transform and data-exponent, the scores, and the classes won and over on body. */
+    body {margin: 0; min-height: 100vh; display: flex; justify-content: center; background: #faf8ef; color: #776e65;
+      font: 16px/1.4 "Clear Sans", "Helvetica Neue", Arial, sans-serif}
+    main {width: 460px; max-width: calc(100vw - 24px); padding: 24px 0}
+    header {display: flex; align-items: center; gap: 8px}
+    h1 {margin: 0 auto 0 0; font-size: 64px; line-height: 1; color: #776e65}
+    .score, .best {min-width: 72px; padding: 6px 12px; border-radius: 6px; background: #bbada0; color: #eee4da;
+      text-align: center; font-size: 13px; font-weight: bold; text-transform: uppercase}
+    .score output, .best output {display: block; color: white; font-size: 22px}
+    .intro {display: flex; align-items: center; gap: 12px; margin: 16px 0}
+    .intro p {margin: 0}
+    .new-game {flex: none; padding: 10px 16px; border: 0; border-radius: 6px; background: #8f7a66; color: #f9f6f2;
+      font: inherit; font-weight: bold; cursor: pointer}
+    .board {position: relative; width: 460px; height: 460px; border-radius: 8px; background: #bbada0;
+      zoom: var(--fit, 1); touch-action: none; user-select: none}
+    .slots {position: absolute; inset: 12px; display: grid; grid-template: repeat(4, 100px) / repeat(4, 100px); gap: 12px}
+    .slots div {border-radius: 5px; background: rgb(238 228 218 / 0.35)}
+    .tile {position: absolute; left: 0; top: 0; width: 100px; height: 100px; border-radius: 5px;
+      display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 48px;
+      background: #3c3a32; color: #f9f6f2; will-change: transform}
+    .tile[hidden] {display: none}
+    .tile.ghost {z-index: 0}
+    .tile:not(.ghost) {z-index: 1}
+    .tile[data-exponent="1"] {background: #eee4da; color: #776e65}
+    .tile[data-exponent="2"] {background: #ede0c8; color: #776e65}
+    .tile[data-exponent="3"] {background: #f2b179}
+    .tile[data-exponent="4"] {background: #f59563}
+    .tile[data-exponent="5"] {background: #f67c5f}
+    .tile[data-exponent="6"] {background: #f65e3b}
+    .tile[data-exponent="7"] {background: #edcf72; font-size: 40px}
+    .tile[data-exponent="8"] {background: #edcc61; font-size: 40px}
+    .tile[data-exponent="9"] {background: #edc850; font-size: 40px}
+    .tile[data-exponent="10"] {background: #edc53f; font-size: 32px}
+    .tile[data-exponent="11"] {background: #edc22e; font-size: 32px; box-shadow: 0 0 24px 6px rgb(243 215 116 / 0.6)}
+    .tile[data-exponent="14"], .tile[data-exponent="15"], .tile[data-exponent="16"], .tile[data-exponent="17"] {font-size: 26px}
+    .message {position: absolute; inset: 0; z-index: 2; display: none; align-items: center; justify-content: center;
+      border-radius: 8px; font-size: 48px; font-weight: bold}
+    body.over .message.lost {display: flex; background: rgb(238 228 218 / 0.7)}
+    .badge {display: none; margin: 0; padding: 4px 10px; border-radius: 6px; background: #edc22e; color: #f9f6f2; font-weight: bold}
+    body.won .badge {display: block}
+    footer {margin-top: 16px; font-size: 14px}
+    kbd {padding: 1px 5px; border-radius: 3px; background: #eee4da; font: inherit}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>2048</h1>
+      <div class="score">Score<output>0</output></div>
+      <div class="best">Best<output>0</output></div>
+    </header>
+    <div class="intro">
+      <p>Join the tiles, get to <b>2048!</b> <span class="badge">You made 2048!</span></p>
+      <button class="new-game" type="button">New game</button>
+    </div>
+    <div class="board">
+      <div class="slots">
+        <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+      </div>
+      <div class="message lost">Game over</div>
+    </div>
+    <footer>
+      <p>Arrow keys, <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or swipe to move, <kbd>N</kbd> for a new game.</p>
+      <p>Every key press runs one fixed list of about 7,000 weighted sums, products and ReLUs over floats, i.e. a
+        neural net with hand-written weights: no <code>if</code>, no loop. It slides the rows, merges tiles, spawns new
+        ones, keeps the score and springs every tile into place. See <code>game2048/README.md</code>.</p>
+    </footer>
+  </main>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
