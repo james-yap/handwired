@@ -117,6 +117,10 @@ export function buildGame() {
   const {zero, sum, gate, not, and, or, equals, atLeast} = vocabulary
   const {keys} = cells
   const slots = range(boardSize)
+  // Where each part of the program ends in circuit.operations, for inspector.ts's overview. Parts follow each other
+  // because operations are appended in the order the lines below run.
+  const parts: ProgramPart[] = []
+  const endPart = (name: string) => { parts.push({name, end: circuit.operations.length}) }
 
   // Keys arrive one per evaluation (table.atMostOne above), so a sum of key bits is itself a bit. The circuit only
   // sees a sum of 0..4, so keyPressed declares it, which keeps everything that reads it on whole numbers in 0..1.
@@ -142,7 +146,10 @@ export function buildGame() {
     })))
 
   // 2. Slide each row to the left.
-  const rows = toRows(cells.board).map(row => slideRowLeft(vocabulary, circuit, row))
+  const rowsIn = toRows(cells.board)
+  endPart('read rows')
+  const rows = rowsIn.map(row => slideRowLeft(vocabulary, circuit, row))
+  endPart('slide rows')
 
   // 3. The board after the key.
   // JS: afterMove = moving ? slid board : board. The slid board is all zeros when no arrow was pressed.
@@ -154,10 +161,12 @@ export function buildGame() {
   // JS: start = newGame ? empty board : afterMove
   const notNewGame = not(keys.newGame)
   const start = afterMove.map(exponent => gate(notNewGame, exponent))
+  endPart('write rows back')
   // JS: a move that changed the board spawns one tile, a new game two.
   const firstSpawn = spawnTile(vocabulary, circuit, start, or(changed, keys.newGame), cells.spawns[0]!)
   const secondSpawn = spawnTile(vocabulary, circuit, firstSpawn.board, keys.newGame, cells.spawns[1]!)
   const board = secondSpawn.board
+  endPart('spawn')
   // JS: score = newGame ? 0 : score + gain, and best = Math.max(best, score). The gain is 0 unless an arrow was pressed.
   // The score's cell only holds scores up to 2^24, and the evaluation checks it, so the sum can promise the same.
   const score = sum(gate(notNewGame, cells.score), ...rows.map(row => row.gain))
@@ -173,6 +182,7 @@ export function buildGame() {
     ...board.map(exponent => equals(exponent, zero)),
     ...neighbors.map(([a, b]) => equals(board[a]!, board[b]!)),
   ))
+  endPart('score and status')
 
   // 4. Animation. Each cell's springs belong to the tile drawn in that cell, so when a tile moves to another cell,
   // its springs move with it, and the slide is a jump of the spring's destination: the tile is drawn where it was,
@@ -275,7 +285,12 @@ export function buildGame() {
     // 1 while anything still moves. The host keeps requesting frames until it's 0.
     active: animation.active,
   }
-  return {cells, output, ...table.finish()}
+  endPart('animation')
+  // What inspector.ts shows of a key press: each row as read in the arrow's order with every step of its slide, the
+  // tiles that spawned, and the board after the key. These are wires the program computes anyway, so returning them
+  // adds no operation.
+  const inspect: InspectWires = {rows: rows.map((row, line) => ({read: rowsIn[line]!, ...row})), spawned: spawnedHere, board}
+  return {cells, output, inspect, parts, ...table.finish()}
 }
 
 type SpringWires = {displacement: Wire, velocity: Wire}
@@ -295,6 +310,15 @@ type SlidRow = {
   ghost: Wire[]
   // The points this row scores: the sum of its merged tiles.
   gain: Wire
+  // The steps in between, named as in slideRowLeft, for inspector.ts.
+  occupied: Wire[]
+  tilesBefore: Wire[]
+  packedFrom: Wire[][]
+  packed: Wire[]
+  merges: Wire[]
+  survives: Wire[]
+  finalSlot: Wire[]
+  lands: Wire[][]
 }
 
 // One row slid to the left, the same three steps as slideLine in rules.ts. row[position] is the exponent at that
@@ -352,7 +376,7 @@ function slideRowLeft({zero, sum, gate, not, and, equals, atLeast}: Vocabulary, 
     circuit.assumeGrid(value, 1)
     return gate(merges[slot]!, value)
   }))
-  return {line, merged, from, mergedFrom, ghost, gain}
+  return {line, merged, from, mergedFrom, ghost, gain, occupied, tilesBefore, packedFrom, packed, merges, survives, finalSlot, lands}
 }
 
 // A new tile in a random empty cell, the same as spawnTile in rules.ts, when `enabled` is 1.
@@ -369,3 +393,8 @@ function spawnTile({zero, sum, and, equals, atLeast}: Vocabulary, circuit: Circu
 }
 
 export type GameOutput = WireValues<ReturnType<typeof buildGame>['output']>
+export type ProgramPart = {name: string, end: number}
+// A row as read in the arrow's order, and every step of its slide.
+export type InspectedRow = SlidRow & {read: Wire[]}
+export type InspectWires = {rows: InspectedRow[], spawned: Wire[], board: Wire[]}
+export type Inspection = WireValues<InspectWires>

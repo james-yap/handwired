@@ -16,6 +16,7 @@ Arrow keys, WASD or a swipe move the tiles, and N or the button starts a new gam
 - `game.ts`: the same rules as builder code. It runs once, and each line appends the operations of one expression, which the comment above it shows in JavaScript.
 - `machine.ts`: the host, i.e. the JavaScript around the program. It queues key presses, writes the key and the random numbers into the program's input cells, runs the program, and writes the next state back.
 - `page.ts`, `index.html` and `main.ts`: the page. It reads keys and swipes, and draws the program's output numbers. Nothing here knows the rules.
+- `inspector.ts`: the panel beside the board, which shows how the program slid one line on the last arrow key. See [The inspector](#the-inspector).
 - `game2048.test.ts`: plays the program and `rules.ts` side by side.
 
 ## How the program works
@@ -51,6 +52,15 @@ Each step also produces where each tile came from, `from[final][position]`, whic
 **3. Randomness comes from the host.** The program can't call `Math.random()`, so the host draws two numbers per key press and writes them into input cells. The program turns them into "the k-th empty cell" by comparing against thresholds, with `k = floor(slot × emptyCount / 720720)`. 720720 is the least common multiple of 1..16, so every empty cell is equally likely, and both versions place tiles identically from the same numbers. That's what lets the test compare them move by move.
 
 **4. Animation without tile identities.** The board only stores numbers per cell, not "tile #37". So each cell owns the springs of whatever tile it holds: an x offset, a y offset and a scale. When a key moves a tile from cell q to cell p, the program carries q's spring state into p with the same `from` bits, and moves the spring's destination by the distance from q to p. The tile is drawn where it was and springs toward its new cell. `emitAnimatedObject` already supports that kind of jump as `destinationDuringSteps`, because the host's spring steps simulate the time *before* the key, when the tile was still heading for q. A merge also leaves a *ghost*: the tile that merged away slides in under the merged tile, showing its old number. New tiles restart at scale 0 and merged ones at scale 1.15, and both spring back to 1.
+
+## The inspector
+
+The panel beside the board shows the last arrow key from the inside. `buildGame` also returns `inspect`, which holds wires the program computes anyway: each line as read in the arrow's order, every step of `slideRowLeft` on it (`occupied`, `tilesBefore`, `packedFrom`, `packed`, `merges`, `survives`, `finalSlot`, `lands`, `line`, `gain`), the spawned tiles and the next board. On each arrow key, machine.ts runs a second evaluator with `inspect` as its output, on the same table as the key's evaluation. The panel only draws those values and never computes a rule.
+
+- The strip shows one line's slide from top to bottom, and plays its steps after each key. The panel picks the line with the most merges, and the buttons above it pick another. Each bit matrix is drawn as a switchboard: a wire from where a tile was to where it goes, lit where the bit is 1.
+- Hovering a value shows the JavaScript it stands for and the arithmetic of the operations on the values above it, e.g. `merges[0]` as `relu(filled[1] + equal − 1)`. The panel redoes that arithmetic only to display it, and the result is always the wire's own value.
+- While the strip plays, and while the pointer is over the panel, the board shows the order in which the arrow reads each line, with the shown line outlined and its positions numbered.
+- The overview counts the program's operations by depth, i.e. by the longest chain of operations from the source table to each one, colored by the part of `buildGame` that appended them. It marks the layers of the shown step or the hovered value. Sliding all 4 rows takes about 1,100 operations, and the springs take about 5,100 of the 7,090.
 
 ## What the test checks
 

@@ -5,9 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>2048, as one numeric program</title>
   <style>
-    /* page.ts writes each tile's transform and data-exponent, the scores, and the classes won and over on body. */
+    /* page.ts writes each tile's transform and data-exponent, the scores, and the classes won and over on body.
+       inspector.ts draws the aside, and toggles the class reading on the board while it shows the reading order. */
     body {margin: 0; min-height: 100vh; display: flex; justify-content: center; background: #faf8ef; color: #776e65;
       font: 16px/1.4 "Clear Sans", "Helvetica Neue", Arial, sans-serif}
+    .layout {display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; column-gap: 40px}
     main {width: 460px; max-width: calc(100vw - 24px); padding: 24px 0}
     header {display: flex; align-items: center; gap: 8px}
     h1 {margin: 0 auto 0 0; font-size: 64px; line-height: 1; color: #776e65}
@@ -24,21 +26,25 @@
     .slots div {border-radius: 5px; background: rgb(238 228 218 / 0.35)}
     .tile {position: absolute; left: 0; top: 0; width: 100px; height: 100px; border-radius: 5px;
       display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 48px;
-      background: #3c3a32; color: #f9f6f2; will-change: transform}
+      background: var(--tile, #3c3a32); color: var(--tile-text, #f9f6f2); will-change: transform}
     .tile[hidden] {display: none}
     .tile.ghost {z-index: 0}
     .tile:not(.ghost) {z-index: 1}
-    .tile[data-exponent="1"] {background: #eee4da; color: #776e65}
-    .tile[data-exponent="2"] {background: #ede0c8; color: #776e65}
-    .tile[data-exponent="3"] {background: #f2b179}
-    .tile[data-exponent="4"] {background: #f59563}
-    .tile[data-exponent="5"] {background: #f67c5f}
-    .tile[data-exponent="6"] {background: #f65e3b}
-    .tile[data-exponent="7"] {background: #edcf72; font-size: 40px}
-    .tile[data-exponent="8"] {background: #edcc61; font-size: 40px}
-    .tile[data-exponent="9"] {background: #edc850; font-size: 40px}
-    .tile[data-exponent="10"] {background: #edc53f; font-size: 32px}
-    .tile[data-exponent="11"] {background: #edc22e; font-size: 32px; box-shadow: 0 0 24px 6px rgb(243 215 116 / 0.6)}
+    /* Each exponent's colors, for the board's tiles and the inspector's. */
+    [data-exponent="1"] {--tile: #eee4da; --tile-text: #776e65}
+    [data-exponent="2"] {--tile: #ede0c8; --tile-text: #776e65}
+    [data-exponent="3"] {--tile: #f2b179}
+    [data-exponent="4"] {--tile: #f59563}
+    [data-exponent="5"] {--tile: #f67c5f}
+    [data-exponent="6"] {--tile: #f65e3b}
+    [data-exponent="7"] {--tile: #edcf72}
+    [data-exponent="8"] {--tile: #edcc61}
+    [data-exponent="9"] {--tile: #edc850}
+    [data-exponent="10"] {--tile: #edc53f}
+    [data-exponent="11"] {--tile: #edc22e}
+    .tile[data-exponent="7"], .tile[data-exponent="8"], .tile[data-exponent="9"] {font-size: 40px}
+    .tile[data-exponent="10"] {font-size: 32px}
+    .tile[data-exponent="11"] {font-size: 32px; box-shadow: 0 0 24px 6px rgb(243 215 116 / 0.6)}
     .tile[data-exponent="14"], .tile[data-exponent="15"], .tile[data-exponent="16"], .tile[data-exponent="17"] {font-size: 26px}
     .message {position: absolute; inset: 0; z-index: 2; display: none; align-items: center; justify-content: center;
       border-radius: 8px; font-size: 48px; font-weight: bold}
@@ -47,9 +53,59 @@
     body.won .badge {display: block}
     footer {margin-top: 16px; font-size: 14px}
     kbd {padding: 1px 5px; border-radius: 3px; background: #eee4da; font: inherit}
+    code {font: 0.9em ui-monospace, Menlo, monospace}
+
+    .reading-order {position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.3s}
+    .board.reading .reading-order {opacity: 1}
+    .inspector {width: 440px; max-width: calc(100vw - 24px); padding: 24px 0; font-size: 14px}
+    .inspector h2 {margin: 12px 0 4px; font-size: 24px}
+    .inspector h3 {margin: 20px 0 4px; font-size: 15px}
+    .inspector p {margin: 4px 0}
+    .inspector:not(.has-move) .move, .inspector.has-move .waiting {display: none}
+    .summary {min-height: 40px}
+    .lines, .steps {display: flex; align-items: center; gap: 6px; margin: 8px 0}
+    .inspector button {padding: 4px 10px; border: 0; border-radius: 6px; background: #eee4da; color: #776e65;
+      font: inherit; cursor: pointer}
+    .inspector button[aria-pressed="true"] {background: #8f7a66; color: #f9f6f2}
+    .steps input {flex: 1; accent-color: #8f7a66}
+    .step-name {min-width: 92px; font: 12px ui-monospace, Menlo, monospace}
+    .strip, .overview {display: block; width: 100%; height: auto; overflow: visible}
+    .strip text {font: 12px ui-monospace, Menlo, monospace; fill: #776e65}
+    .strip .sub, .strip .index {font-size: 10px; fill: #a39689}
+    .strip .stage {transition: opacity 0.15s}
+    .strip .stage.hidden {opacity: 0.08}
+    .strip .stage.current .name {fill: #f65e3b; font-weight: bold}
+    .strip .chip {fill: var(--tile, #3c3a32)}
+    .strip .chip.empty {fill: rgb(238 228 218 / 0.6); stroke: #d6cdc4}
+    .strip .chip-text {font: bold 16px "Clear Sans", "Helvetica Neue", Arial, sans-serif; fill: var(--tile-text, #f9f6f2)}
+    .strip .chip-text.small {font-size: 12px}
+    .strip .pill {fill: #8f7a66}
+    .strip .pill + text {fill: #f9f6f2; font-weight: bold}
+    .strip .unused {fill: #c9bfb5}
+    .strip .wire {stroke: #d6cdc4; stroke-width: 1; stroke-dasharray: 2 3}
+    .strip .wire.on {stroke: #f59563; stroke-width: 3; stroke-dasharray: none}
+    .strip .halo {fill: none; stroke: transparent; stroke-width: 2}
+    .strip .item {cursor: help}
+    .strip .item:hover .halo {stroke: #8f7a66}
+    .strip .item:hover .wire {stroke: #8f7a66}
+    .strip .hit {stroke: transparent; stroke-width: 12; fill: transparent}
+    .strip .bracket {stroke: #bbada0; stroke-width: 2}
+    .detail {min-height: 96px; padding: 8px 10px; border-radius: 6px; background: #eee4da; font-size: 13px}
+    .detail b, .detail code {display: block}
+    .detail code {margin-top: 2px; white-space: pre-wrap}
+    .detail .js {color: #8f7a66}
+    .detail p {margin-top: 4px}
+    .overview text {font: 10px "Clear Sans", "Helvetica Neue", Arial, sans-serif; fill: #a39689}
+    .overview .band {fill: rgb(246 94 59 / 0.15)}
+    .overview .marker {stroke: #f65e3b; stroke-width: 2}
+    .legend {display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 12px}
+    .legend span::before {content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 4px;
+      border-radius: 2px; background: var(--swatch)}
+    .layers {min-height: 20px; font-size: 13px}
   </style>
 </head>
 <body>
+  <div class="layout">
   <main>
     <header>
       <h1>2048</h1>
@@ -61,6 +117,7 @@
       <button class="new-game" type="button">New game</button>
     </div>
     <div class="board">
+      <svg class="reading-order" viewBox="0 0 460 460" aria-hidden="true"></svg>
       <div class="slots">
         <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
         <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
@@ -74,6 +131,29 @@
         ones, keeps the score and springs every tile into place. See <code>game2048/README.md</code>.</p>
     </footer>
   </main>
+  <aside class="inspector">
+    <h2>Inside the last move</h2>
+    <p class="waiting">Press an arrow key. This panel then shows how the program slid one row, with every number read
+      from the program's own wires.</p>
+    <div class="move">
+      <p class="summary"></p>
+      <div class="lines" role="group" aria-label="Which line to show"></div>
+      <svg class="strip" aria-label="The steps of one line's slide"></svg>
+      <div class="steps">
+        <button class="step-back" type="button" aria-label="Previous step">◀</button>
+        <input class="step" type="range" min="0" value="0" aria-label="Step">
+        <button class="step-forward" type="button" aria-label="Next step">▶</button>
+        <button class="replay" type="button">Replay</button>
+        <span class="step-name"></span>
+      </div>
+      <div class="detail"><b class="title"></b><code class="js"></code><code class="math"></code><p class="meaning"></p></div>
+      <h3>Where it runs among the program's operations</h3>
+      <svg class="overview" aria-label="Operations per layer"></svg>
+      <p class="layers"></p>
+      <div class="legend"></div>
+    </div>
+  </aside>
+  </div>
   <script type="module" src="./main.ts"></script>
 </body>
 </html>

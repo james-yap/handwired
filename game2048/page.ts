@@ -1,6 +1,8 @@
 // The page: arrow keys, WASD and swipes queue key presses, and each animation frame runs the machine and writes the
-// DOM from the program's output numbers only. Nothing here knows the rules of 2048.
+// DOM from the program's output numbers only. Nothing here knows the rules of 2048. inspector.ts draws the panel
+// beside the board from the machine's last inspected move.
 import {layout} from './game.ts'
+import {mountInspector} from './inspector.ts'
 import {cellCount, type Direction} from './rules.ts'
 import {createGameMachine} from './machine.ts'
 
@@ -21,6 +23,7 @@ export function mountGame() {
   const score = document.querySelector<HTMLElement>('.score output')!
   const best = document.querySelector<HTMLElement>('.best output')!
   const page = document.body
+  const inspector = mountInspector(machine.built, board)
   // Every cell has a ghost, i.e. the tile that just merged into it, under its tile. Both are reused for whatever
   // tile the cell holds, and hidden while their exponent is 0.
   const makeTiles = (className: string) => Array.from({length: cellCount}, () => {
@@ -54,6 +57,7 @@ export function mountGame() {
     best.textContent = String(output.best)
     page.classList.toggle('won', output.won === 1)
     page.classList.toggle('over', output.gameOver === 1)
+    inspector.show(machine.lastMove)
     if (output.best !== savedScore) {
       savedScore = output.best
       localStorage.setItem(bestScoreKey, String(output.best))

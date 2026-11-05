@@ -4,16 +4,20 @@
 // evaluation's inputs into the source table, runs the program, and writes the next state back.
 import {advanceFrame, defaultSpringClockConfig, springMatrixPower, springStepMatrix, stoppedSpringClock} from '../src/runtime/host-timing.ts'
 import {createEvaluator} from '../src/runtime/cells.ts'
-import {type GameOutput, buildGame, springConstants} from './game.ts'
-import {type GameKey, drawSpawn} from './rules.ts'
+import {type GameOutput, type Inspection, buildGame, springConstants} from './game.ts'
+import {type Direction, type GameKey, drawSpawn} from './rules.ts'
 
 export type KeyPress = {key: GameKey, timeStamp: number}
+// An arrow key's evaluation as inspector.ts shows it: the board before the key, and the values of built.inspect.
+export type InspectedMove = {direction: Direction, before: number[], inspection: Inspection}
 
 // `random` draws the spawned tiles' places and values. Tests pass a seeded one.
 export function createGameMachine(random: () => number = Math.random) {
   const built = buildGame()
   const {cells} = built
   const evaluate = createEvaluator(built)
+  // The same program with built.inspect as its output, run on the same table as each arrow key's evaluation.
+  const inspect = createEvaluator({...built, output: built.inspect})
   // The spring matrix of every step count a frame can plan, see springMatrixPower.
   const step = springStepMatrix(springConstants)
   const matrices = Array.from({length: defaultSpringClockConfig.maxStepsPerFrame + 1}, (_, steps) => springMatrixPower(step, steps))
@@ -26,6 +30,8 @@ export function createGameMachine(random: () => number = Math.random) {
     source,
     // The host requests frames while clock.animatedUntilMs isn't null.
     clock: stoppedSpringClock,
+    // The last arrow key's evaluation, for inspector.ts. A key that moves nothing is inspected too.
+    lastMove: null as InspectedMove | null,
     queue(press: KeyPress) {
       queued.push(press)
     },
@@ -55,6 +61,9 @@ export function createGameMachine(random: () => number = Math.random) {
             values[spawn.slot] = draw.slot
             values[spawn.four] = draw.four
           }
+        }
+        if (press !== undefined && press.key !== 'newGame') {
+          machine.lastMove = {direction: press.key, before: cells.board.map(wire => values[wire]!), inspection: inspect(values).output}
         }
         const result = evaluate(values)
         if (evaluation.writesBack) source.set(result.nextValues)
